@@ -1,1 +1,2 @@
-# cbtravelpath
+# CBFriendsCost
+CB Project
