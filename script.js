@@ -1,15 +1,16 @@
 onload = function () {
-    // create a network
-    var curr_data;
-    var sz;
-    var container = document.getElementById('mynetwork');
-    var container2 = document.getElementById('mynetwork2');
-    var genNew = document.getElementById('generate-graph');
-    var solve = document.getElementById('solve');
-    var temptext = document.getElementById('temptext');
-    var temptext2 = document.getElementById('temptext2');
+    let curr_data,V,src,dst;
+
+    const container = document.getElementById('mynetwork');
+    const container2 = document.getElementById('mynetwork2');
+    const genNew = document.getElementById('generate-graph');
+    const solve = document.getElementById('solve');
+    const temptext = document.getElementById('temptext');
+    const temptext2 = document.getElementById('temptext2');
+    const cities = ['Delhi', 'Mumbai', 'Gujarat', 'Goa', 'Kanpur', 'Jammu', 'Hyderabad', 'Bangalore', 'Gangtok', 'Meghalaya'];
+
     // initialise graph options
-    var options = {
+    const options = {
         edges: {
             labelHighlightBold: true,
             font: {
@@ -30,39 +31,46 @@ onload = function () {
             }
         }
     };
-    // initialize your network!
-    var network = new vis.Network(container);
+
+    // Initialize your network!
+    // Network for question graph
+    const network = new vis.Network(container);
     network.setOptions(options);
-    var network2 = new vis.Network(container2);
+    // Network for result graph
+    const network2 = new vis.Network(container2);
     network2.setOptions(options);
 
     function createData(){
-        sz = Math.floor(Math.random() * 8) + 3;
-        cities = ['Delhi', 'Mumbai', 'Gujarat', 'Goa', 'Kanpur', 'Jammu', 'Hyderabad', 'Bangalore', 'Gangtok', 'Meghalaya'];
+        V = Math.floor(Math.random() * 8) + 3; // Ensures V is between 3 and 10
         let nodes = [];
-        for(let i=1;i<=sz;i++){
+        for(let i=1;i<=V;i++){
             nodes.push({id:i, label: cities[i-1]})
         }
+        // Prepares vis.js style nodes for our data
         nodes = new vis.DataSet(nodes);
 
+        // Creating a tree like underlying graph structure
         let edges = [];
-        for(let i=2;i<=sz;i++){
-            let neigh = i - Math.floor(Math.random()*Math.min(i-1,3)+1);
+        for(let i=2;i<=V;i++){
+            let neigh = i - Math.floor(Math.random()*Math.min(i-1,3)+1); // Picks a neighbour from i-3 to i-1
             edges.push({type: 0, from: i, to: neigh, color: 'orange',label: String(Math.floor(Math.random()*70)+31)});
         }
 
-        src = 1;
-        dst = sz;
+        // Randomly adding new edges to graph
+        // Type of bus is 0
+        // Type of plane is 1
+        for(let i=1;i<=V/2;){
 
-        for(let i=1;i<=sz/2;){
-            let n1 = Math.floor(Math.random()*sz)+1;
-            let n2 = Math.floor(Math.random()*sz)+1;
-            if(n1!=n2){
+            let n1 = Math.floor(Math.random()*V)+1;
+            let n2 = Math.floor(Math.random()*V)+1;
+            if(n1!==n2){
                 if(n1<n2){
                     let tmp = n1;
                     n1 = n2;
                     n2 = tmp;
                 }
+                // Seeing if an edge between these two vertices already exists
+                // And if it does then of which kind
                 let works = 0;
                 for(let j=0;j<edges.length;j++){
                     if(edges[j]['from']===n1 && edges[j]['to']===n2) {
@@ -73,8 +81,12 @@ onload = function () {
                     }
                 }
 
+                // Adding edges to the graph
+                // If works == 0, you can add bus as well as plane between vertices
+                // If works == 1, you can only add plane between them
                 if(works <= 1) {
-                    if (works === 0 && i < sz / 4) {
+                    if (works === 0 && i < V / 4) {
+                        // Adding a bus
                         edges.push({
                             type: 0,
                             from: n1,
@@ -83,6 +95,7 @@ onload = function () {
                             label: String(Math.floor(Math.random() * 70) + 31)
                         });
                     } else {
+                        // Adding a plane
                         edges.push({
                             type: 1,
                             from: n1,
@@ -96,14 +109,17 @@ onload = function () {
             }
         }
 
-        let data = {
+        // Setting the new values of global variables
+        src = 1;
+        dst = V;
+        curr_data = {
             nodes: nodes,
             edges: edges
         };
-        curr_data = data;
     }
 
     genNew.onclick = function () {
+        // Create new data and display the data
         createData();
         network.setData(curr_data);
         temptext2.innerText = 'Find least time path from '+cities[src-1]+' to '+cities[dst-1];
@@ -114,13 +130,14 @@ onload = function () {
     };
 
     solve.onclick = function () {
+        // Create graph from data and set to display
         temptext.style.display  = "none";
         temptext2.style.display  = "none";
         container2.style.display = "inline";
-        network2.setData(solveData(sz));
+        network2.setData(solveData());
     };
 
-    function dijkstra(graph, sz, src) {
+    function djikstra(graph, sz, src) {
         let vis = Array(sz).fill(0);
         let dist = [];
         for(let i=1;i<=sz;i++)
@@ -149,10 +166,9 @@ onload = function () {
         return dist;
     }
 
-    function solveData(sz) {
-        let data = curr_data;
+    function createGraph(data){
         let graph = [];
-        for(let i=1;i<=sz;i++){
+        for(let i=1;i<=V;i++){
             graph.push([]);
         }
 
@@ -163,16 +179,14 @@ onload = function () {
             graph[edge['to']-1].push([edge['from']-1,parseInt(edge['label'])]);
             graph[edge['from']-1].push([edge['to']-1,parseInt(edge['label'])]);
         }
+        return graph;
+    }
 
-        let dist1 = dijkstra(graph,sz,src-1);
-        let dist2 = dijkstra(graph,sz,dst-1);
-
-        let mn_dist = dist1[dst-1][0];
-
+    function shouldTakePlane(edges, dist1, dist2, mn_dist) {
         let plane = 0;
         let p1=-1, p2=-1;
-        for(let pos in data['edges']){
-            let edge = data['edges'][pos];
+        for(let pos in edges){
+            let edge = edges[pos];
             if(edge['type']===1){
                 let to = edge['to']-1;
                 let from = edge['from']-1;
@@ -191,30 +205,50 @@ onload = function () {
                 }
             }
         }
+        return {plane, p1, p2};
+    }
 
-        new_edges = [];
+    function solveData() {
+
+        const data = curr_data;
+
+        // Creating adjacency list matrix graph from question data
+        const graph = createGraph(data);
+
+        // Applying djikstra from src and dst
+        let dist1 = djikstra(graph,V,src-1);
+        let dist2 = djikstra(graph,V,dst-1);
+
+        // Initialise min_dist to min distance via bus from src to dst
+        let mn_dist = dist1[dst-1][0];
+
+        // See if plane should be used
+        let {plane, p1, p2} = shouldTakePlane(data['edges'], dist1, dist2, mn_dist);
+
+        let new_edges = [];
         if(plane!==0){
             new_edges.push({arrows: { to: { enabled: true}}, from: p1+1, to: p2+1, color: 'green',label: String(plane)});
-            new_edges.concat(pushEdges(dist1, p1, false));
-            new_edges.concat(pushEdges(dist2, p2, true));
+            // Using spread operator to push elements of result of pushEdges to new_edges
+            new_edges.push(...pushEdges(dist1, p1, false));
+            new_edges.push(...pushEdges(dist2, p2, true));
         } else{
-            new_edges.concat(pushEdges(dist1, dst-1, false));
+            new_edges.push(...pushEdges(dist1, dst-1, false));
         }
-        data = {
+        const ans_data = {
             nodes: data['nodes'],
             edges: new_edges
         };
-        return data;
+        return ans_data;
     }
 
     function pushEdges(dist, curr, reverse) {
-        tmp_edges = [];
-        while(dist[curr][0]!=0){
+        let tmp_edges = [];
+        while(dist[curr][0]!==0){
             let fm = dist[curr][1];
             if(reverse)
-                new_edges.push({arrows: { to: { enabled: true}},from: curr+1, to: fm+1, color: 'orange', label: String(dist[curr][0] - dist[fm][0])});
+                tmp_edges.push({arrows: { to: { enabled: true}},from: curr+1, to: fm+1, color: 'orange', label: String(dist[curr][0] - dist[fm][0])});
             else
-                new_edges.push({arrows: { to: { enabled: true}},from: fm+1, to: curr+1, color: 'orange', label: String(dist[curr][0] - dist[fm][0])});
+                tmp_edges.push({arrows: { to: { enabled: true}},from: fm+1, to: curr+1, color: 'orange', label: String(dist[curr][0] - dist[fm][0])});
             curr = fm;
         }
         return tmp_edges;
